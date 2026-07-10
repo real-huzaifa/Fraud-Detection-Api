@@ -1,0 +1,12 @@
+pandas
+numpy
+scikit-learn
+lightgbm
+matplotlib
+seaborn
+pyarrow
+jupyter
+ipykernel
+fastapi
+uvicorn[standard]
+pydantic
