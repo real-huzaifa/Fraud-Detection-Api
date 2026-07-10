@@ -1,14 +1,76 @@
-# Fraud Detection System
+# Fraud Detection System — End-to-End ML Pipeline with Live API
 
-ML project: detect fraudulent transactions (IEEE-CIS dataset) and serve predictions via an API.
+An end-to-end machine learning project that detects fraudulent transactions and serves
+predictions through a live, publicly-deployed API.
+
+**Live demo:** https://fraud-detection-api.containers.snapdeploy.app/docs
+*(Free-tier hosting — the first request after idle may take ~10-30s to wake the container.)*
+
+Built by **Ahmed Huzaifa Malik** as a portfolio project covering the full ML lifecycle: data
+analysis, modeling, API development, containerization, and cloud deployment.
+
+---
+
+## What this is
+
+A fraud detection model trained on the [IEEE-CIS Fraud Detection dataset](https://www.kaggle.com/c/ieee-fraud-detection)
+(~590K transactions, 3.5% fraud rate), wrapped in a FastAPI service, containerized with Docker,
+and deployed to the cloud. You can send a transaction to the live API and get back a fraud
+probability.
+
+> **Note on scope:** This is a portfolio demonstration of an end-to-end ML pipeline, not a
+> production fraud system. The model is trained on one specific dataset and would not generalize
+> to real-world transactions from other sources.
+
+## Headline results
+
+| Model | PR-AUC |
+|---|---|
+| Logistic Regression (baseline) | 0.186 |
+| **LightGBM (final model)** | **0.548** |
+
+- **Primary metric: PR-AUC**, not accuracy — with a 3.5% fraud rate, a "never fraud" model would
+  score 96.5% accuracy while catching zero fraud. PR-AUC reflects real performance on the
+  imbalanced problem.
+- Evaluated with a **time-based train/test split** (train on earlier transactions, test on later)
+  to respect the temporal nature of fraud and avoid leakage.
+
+## Architecture
+- Data (IEEE-CIS) → EDA → LightGBM model → FastAPI service → Docker container → Cloud (SnapDeploy)
+
+## Tech stack
+
+- **ML/Data:** Python, pandas, LightGBM, scikit-learn
+- **API:** FastAPI, uvicorn
+- **Deployment:** Docker, SnapDeploy (cloud), GitHub
+- **Model:** LightGBM with class-weighting for imbalance; PR-AUC 0.548 on a time-based split
+
+## API endpoints
+
+- `GET /health` — service + model status
+- `POST /predict` — score a single transaction
+- `POST /predict_batch` — score up to 1000 transactions
+
+## Running locally
+
+```bash
+# Build and run with Docker
+docker build -t fraud-detection-api .
+docker run -p 8000:8000 fraud-detection-api
+# API docs at http://localhost:8000/docs
+```
+
+---
+
+*(Detailed week-by-week development notes below.)*
 
 ## Status
 - [x] Week 1: Scaffold, data loading, EDA, evaluation harness
 - [x] Week 2: Modeling (baseline + LightGBM)
 - [x] Week 3: FastAPI service
 - [x] Week 4: Docker
-- [ ] Week 5: Cloud deploy
-- [ ] Week 6: Polish + writeup
+- [x] Week 5: Cloud deploy
+- [x] Week 6: Polish + writeup
 
 ## Setup
 1. Create a virtual environment and install `requirements.txt`.
@@ -141,3 +203,33 @@ Packaged the API into a Docker image for portable, reproducible deployment.
 docker build -t fraud-detection-api .
 docker run -p 8000:8000 fraud-detection-api
 ```
+
+## Week 5 findings (Cloud Deployment)
+
+Deployed the containerized API to a public cloud URL.
+
+### Platform
+- **SnapDeploy** (Docker-native, GitHub-connected, free tier, no credit card required).
+- Free tier: 512 MB RAM, 0.25 vCPU, auto-sleep after 15 min idle (~10-30s cold start on wake).
+- Deploys automatically on push to `main`.
+
+### Process
+- Pushed the project to a public GitHub repo (`real-huzaifa/Fraud-Detection-Api`), excluding
+  `.venv/`, `data/`, and notebooks.
+- SnapDeploy builds the image from the Dockerfile, auto-detected the FastAPI app and port 8000.
+
+### Key finding: memory
+- The container (pandas + LightGBM + model) runs within the **512 MB free-tier limit** — the main
+  deployment risk, resolved. Confirmed via live `/health` and `/predict` responses.
+
+### Validation
+- Live endpoints return correct results: `/health` reports the model loaded (431 features), and
+  `/predict` returns `0.4307` on the standard example — identical to local (Week 3) and container
+  (Week 4) results, confirming faithful local → Docker → cloud reproduction.
+
+### Live URL
+- `https://fraud-detection-api.containers.snapdeploy.app`
+- Interactive docs: `/docs`
+
+### Known limitation
+- Free-tier cold start: the first request after 15 min idle takes ~10-30s to wake the container.
