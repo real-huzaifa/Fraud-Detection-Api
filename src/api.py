@@ -1,5 +1,6 @@
 """FastAPI service for fraud detection."""
 from typing import Dict, Any, List
+from fastapi.middleware.cors import CORSMiddleware
 
 import joblib
 import numpy as np
@@ -25,6 +26,13 @@ app = FastAPI(
     version="1.1.0",
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],       # any site can call the API — fine for a public demo
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class Transaction(BaseModel):
     """A single transaction. Any subset of features may be provided;
